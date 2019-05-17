@@ -7,31 +7,69 @@ from flask_restful.reqparse import Argument
 from operator import itemgetter
 from werkzeug.datastructures import MultiDict
 
+from flask_restful_arrayarg.nest import NestParser
+
+try:
+    from collections.abc import MutableSequence
+except ImportError:
+    from collections import MutableSequence
+
 
 class ArrayArgument(Argument):
     def __init__(self, name, *args, **kwargs):
         if 'action' in kwargs and kwargs['actions'] != 'append':
             raise ValueError('ArrayArgument only support the append action')
         kwargs['action'] = 'append'
-        super().__init__(name, *args, **kwargs)
+        super(ArrayArgument, self).__init__(name, *args, **kwargs)
 
     def source(self, request):
-        result = super().source(request)
+        result = super(ArrayArgument, self).source(request)
         prefix = self.name + '['
-        items = []
+        items = collections.OrderedDict()
         for k in list(result.keys()):
             if k.startswith(prefix) and ']' in k[len(prefix):]:
                 pass
             else:
                 continue
-            idx = k[len(prefix):len(prefix) + k[len(prefix):].index(']')]
-            items.append((int(idx, 10), result.pop(k)))
+            idx = k[len(prefix):k.index(']')]
+            idx_int = int(idx, 10)
+            remaining = k[k.index(']') + 1:]
+            value = result[k]
+
+            if self.nested:
+                value, ok = self.extract_value(remaining, value, items.get(idx_int, MultiDict()))
+                if not ok:
+                    continue
+
+            del result[k]
+            items[idx_int] = value
+
         if items:
             if hasattr(result, 'setlist'):
-                result.setlist(self.name, items)
+                result.setlist(self.name, list(items.items()))
             else:
-                result[self.name] = items
+                result[self.name] = list(items.items())
         return result
+
+    def extract_value(self, remaining, value, existing):
+        _parsed = True
+        _ill = False
+        if not remaining:
+            if not self.ignore:
+                raise ValueError('residuals in array name')
+            return value, _ill
+        if remaining.startswith('[') and remaining.endswith(']'):
+            existing[remaining[1:-1]] = value
+        else:
+            if not self.ignore:
+                raise ValueError('illegal nest key name')
+            else:
+                return value, _ill
+        return existing, _parsed
+
+    @property
+    def nested(self):
+        return isinstance(self.type, NestParser)
 
     # noinspection PyProtectedMember
     def parse(self, request, bundle_errors=False):
@@ -57,7 +95,7 @@ class ArrayArgument(Argument):
                     values = source.getlist(name)
                 else:
                     values = source.get(name)
-                    if not (isinstance(values, collections.MutableSequence)):
+                    if not (isinstance(values, MutableSequence)):
                         values = [values]
 
                 for idx, value in values:
@@ -111,6 +149,4 @@ class ArrayArgument(Argument):
             else:
                 return self.default, _not_found
 
-        sorted(results, key=itemgetter(0))
-
-        return collections.OrderedDict(results), _found
+        return collections.OrderedDict(sorted(results, key=itemgetter(0))), _found
