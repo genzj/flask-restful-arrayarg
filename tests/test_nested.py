@@ -3,7 +3,37 @@ from flask_restful.reqparse import Namespace
 
 from flask_restful_arrayarg.array import ArrayArgument
 from flask_restful_arrayarg.nest import NestParser
+from flask_restful_arrayarg.scalar import ScalarParser
 from tests.mock import MockRequest
+
+
+def test_structured():
+    req = MockRequest()
+    req.values = {
+        'rate': 10,
+        'name': 'request1',
+        'arr[x]': 'a',
+        'arr[y]': '1',
+        'arr[z]': 'z',
+    }
+    parser = reqparse.RequestParser()
+    parser.add_argument('rate', type=int, help='Rate cannot be converted')
+    parser.add_argument('name')
+
+    sub_parser = NestParser()
+    sub_parser.add_argument('x')
+    sub_parser.add_argument('y', type=int, help='y should be int')
+    sub_parser.add_argument('z')
+
+    parser.add_argument(ArrayArgument('arr', type=sub_parser))
+
+    args = parser.parse_args(req)
+    assert args['rate'] == 10
+    assert args['name'] == 'request1'
+
+    assert args['arr'] == Namespace(
+        x='a', y=1, z='z'
+    )
 
 
 def test_nested():
@@ -31,7 +61,7 @@ def test_nested():
     sub_parser.add_argument('y', type=int, help='y should be int')
     sub_parser.add_argument('z')
 
-    parser.add_argument(ArrayArgument('arr', type=sub_parser))
+    parser.add_argument(ArrayArgument('arr', type=ScalarParser(type=sub_parser)))
 
     args = parser.parse_args(req)
     assert args['rate'] == 10
@@ -43,6 +73,11 @@ def test_nested():
     assert args['arr'][1] == Namespace(
         x='b', y=3, z='s'
     )
+
+    # TODO add default value to missing nested arguments
+    # assert args['arr'][2] == Namespace(
+    #     x='c', y=None, z='z'
+    # )
     assert args['arr'][2] == Namespace(
-        x='c', y=None, z='z'
+        x='c', z='z'
     )

@@ -1,7 +1,11 @@
-from flask_restful.reqparse import RequestParser
+from flask_restful.reqparse import RequestParser, Argument
+
+from flask_restful_arrayarg.array import SubParser
 
 
 class NestedValue(object):
+    __slots__ = ['value', 'unparsed_arguments']
+
     def __init__(self, value):
         self.value = value
 
@@ -10,11 +14,21 @@ class NestedValue(object):
         return self.value
 
 
-class NestParser(RequestParser):
-    def add_argument(self, *args, **kwargs):
-        super(NestParser, self).add_argument(*args, **kwargs)
-        self.args[-1].location = 'nested'
+class NestParser(SubParser):
+    def __init__(self, name='', *args, **kwargs):
+        super(SubParser, self).__init__(*args, **kwargs)
+        self.args = dict()
 
-    def __call__(self, value, name, op):
-        ans = self.parse_args(req=NestedValue(value))
-        return ans
+    def add_argument(self, *args, **kwargs):
+        if len(args) == 1 and isinstance(args[0], (Argument, SubParser)):
+            arg = args[0]
+        else:
+            arg = Argument(*args, **kwargs)
+
+        if isinstance(arg, Argument):
+            arg.location = 'nest'
+
+        self.args[arg.name or ''] = arg
+
+    def get_argument(self, key):
+        return key, self.args.get(key)

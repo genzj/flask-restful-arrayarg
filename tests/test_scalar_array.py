@@ -4,6 +4,7 @@ from flask_restful import reqparse
 
 from flask_restful_arrayarg import __version__
 from flask_restful_arrayarg.array import ArrayArgument
+from flask_restful_arrayarg.scalar import ScalarParser
 
 
 class MockRequest(object):
@@ -45,10 +46,10 @@ def test_simple_array():
     parser.add_argument('rate', type=int, help='Rate cannot be converted')
     parser.add_argument('name')
     parser.add_argument(ArrayArgument(
-        'arr1'
+        'arr1', type=ScalarParser()
     ))
     parser.add_argument(ArrayArgument(
-        'arr2', type=int
+        'arr2', type=ScalarParser(type=int)
     ))
     args = parser.parse_args(req)
     assert args['rate'] == 10
@@ -73,7 +74,7 @@ def test_sparse_array():
     parser.add_argument('rate', type=int, help='Rate cannot be converted')
     parser.add_argument('name')
     parser.add_argument(ArrayArgument(
-        'arr2', type=int
+        'arr2', type=ScalarParser(type=int)
     ))
     args = parser.parse_args(req)
     assert args['rate'] == 10
@@ -95,7 +96,7 @@ def test_single_location_array():
     parser.add_argument('rate', type=int, help='Rate cannot be converted')
     parser.add_argument('name')
     parser.add_argument(ArrayArgument(
-        'arr2', type=int, location='values',
+        'arr2', type=ScalarParser(type=int), location='values',
     ))
     args = parser.parse_args(req)
     assert args['rate'] == 10
