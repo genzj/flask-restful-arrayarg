@@ -17,6 +17,7 @@ class NestedValue(object):
 class NestParser(SubParser):
     def __init__(self, name='', *args, **kwargs):
         super(SubParser, self).__init__(*args, **kwargs)
+        self.name = name
         self.args = dict()
 
     def add_argument(self, *args, **kwargs):

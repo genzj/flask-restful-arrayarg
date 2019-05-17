@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "flask-restful-arrayarg"
-version = "0.1.0"
+version = "0.2.0"
 description = "An extension to flask-restful argparse for PHP style array forms"
 authors = ["genzj <zj0512@gmail.com>"]
 
